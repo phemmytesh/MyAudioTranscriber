@@ -14,7 +14,7 @@ class TranscriberController extends Controller
 {
     private $audioFile;
 
-    public function transcriber($audioFile)
+    public function __invoke($audioFile)
    {
 
         $this->audioFile = $audioFile;
@@ -64,6 +64,8 @@ class TranscriberController extends Controller
         }
         
         $client->close();
+
+        return "Transcript Saved!";
     
    }
 
