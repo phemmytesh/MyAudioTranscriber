@@ -51,6 +51,13 @@ class TranscriberController extends Controller
 
                 $this->transcript = $transcript;
                 $this->confidence = $confidence;
+
+                $transcriber = new Transcriber;
+                $transcriber->transcript = $this->transcript;
+                $transcriber->confidence = $this->confidence;
+                $transcriber->requestTime = $this->requestTime;
+                $transcriber->save();
+                        
             }
         } else {
             print_r($operation->getError());
@@ -60,14 +67,5 @@ class TranscriberController extends Controller
     
    }
 
-   public function store() 
-   {
 
-        $transcriber = new Transcriber;
-        $transcriber->transcript = $this->transcript;
-        $transcriber->confidence = $this->confidence;
-        $transcriber->requestTime = $this->requestTime;
-        $transcriber->save();
-
-   }
 }
