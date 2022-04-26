@@ -15,6 +15,9 @@ class CreateTranscribersTable extends Migration
     {
         Schema::create('transcribers', function (Blueprint $table) {
             $table->id();
+            $table->sentences('transcription');
+            $table->string('confidence');
+            $table->dateTime('request_time');
             $table->timestamps();
         });
     }
