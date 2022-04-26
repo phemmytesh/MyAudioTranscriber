@@ -2,85 +2,72 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreTranscriberRequest;
-use App\Http\Requests\UpdateTranscriberRequest;
 use App\Models\Transcriber;
+
+use Illuminate\Http\Request;
+use Google\Cloud\Speech\V1\SpeechClient;
+use Google\Cloud\Speech\V1\RecognitionAudio;
+use Google\Cloud\Speech\V1\RecognitionConfig;
+use Google\Cloud\Speech\V1\RecognitionConfig\AudioEncoding;
 
 class TranscriberController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
-    {
-        //
-    }
+    private $audioFile;
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
+    public function transcriber($audioFile)
+   {
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \App\Http\Requests\StoreTranscriberRequest  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(StoreTranscriberRequest $request)
-    {
-        //
-    }
+        $this->audioFile = $audioFile;
+        $this->requestTime = time();
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Transcriber  $transcriber
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Transcriber $transcriber)
-    {
-        //
-    }
+        // set string as audio content
+        $audio = (new RecognitionAudio())->setContent(file_get_contents($this->audioFile));
+        
+        // set config
+        $config = (new RecognitionConfig())
+            ->setEncoding(AudioEncoding::FLAC)
+            ->setSampleRateHertz(32000)
+            ->setLanguageCode('en-US');
+    
+        // create the speech client
+        $client = new SpeechClient();
+        
+        // create the asyncronous recognize operation
+        $operation = $client->longRunningRecognize($config, $audio);
+        $operation->pollUntilComplete();
+    
+        if ($operation->operationSucceeded()) {
+            $response = $operation->getResult();
+        
+            // each result is for a consecutive portion of the audio. iterate
+            // through them to get the transcripts for the entire audio file
+            // and save transcript into database
+            foreach ($response->getResults() as $result) {
+                $alternatives = $result->getAlternatives();
+                $mostLikely = $alternatives[0];
+                
+                $transcript = $mostLikely->getTranscript();
+                $confidence = $mostLikely->getConfidence();
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Transcriber  $transcriber
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Transcriber $transcriber)
-    {
-        //
-    }
+                $this->transcript = $transcript;
+                $this->confidence = $confidence;
+            }
+        } else {
+            print_r($operation->getError());
+        }
+        
+        $client->close();
+    
+   }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \App\Http\Requests\UpdateTranscriberRequest  $request
-     * @param  \App\Models\Transcriber  $transcriber
-     * @return \Illuminate\Http\Response
-     */
-    public function update(UpdateTranscriberRequest $request, Transcriber $transcriber)
-    {
-        //
-    }
+   public function store() 
+   {
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Transcriber  $transcriber
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Transcriber $transcriber)
-    {
-        //
-    }
+        $transcriber = new Transcriber;
+        $transcriber->transcript = $this->transcript;
+        $transcriber->confidence = $this->confidence;
+        $transcriber->requestTime = $this->requestTime;
+        $transcriber->save();
+
+   }
 }
